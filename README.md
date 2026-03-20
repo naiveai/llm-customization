@@ -1,12 +1,12 @@
 ### Level 1: Parameter Configuration
 
 Before writing a single line of training code, you have significant control
-through inference-time parameters. These don't modify the model's weights —
+through inference-time parameters. These don't modify the model's weights,
 they shape how the model samples from its probability distribution at runtime.
 
 The most impactful parameters are **temperature** (controls randomness; lower
 values like 0.1–0.3 make output more deterministic, higher values like
-0.8–1.2 increase creativity), **top-p** (nucleus sampling — limits token
+0.8–1.2 increase creativity), **top-p** (nucleus sampling limits token
 selection to the top cumulative probability mass), and **top-k** (restricts
 sampling to the k most likely tokens). Together, these three govern the quality
 and character of generation.
@@ -36,7 +36,7 @@ The key to reliable tool calling is **description quality**. Each tool
 description must be precise about when to call it, what the parameters mean, and
 what the output represents. Poorly written descriptions lead to hallucinated
 calls or missed triggers. You can iteratively improve this with prompt-level
-few-shot examples showing correct tool invocations — no retraining required.
+few-shot examples showing correct tool invocations without retraining at all.
 
 For production deployments using frameworks like LangChain, LlamaIndex, or
 Ollama with tool support, this level gives you agentic capability at near-zero
@@ -46,8 +46,26 @@ training cost.
 
 ### Level 3: Actual Fine-Tuning
 
-When parameter tuning and prompting hit their ceiling, you train. The standard
-approach for LLaMA is **QLoRA** (Quantized Low-Rank Adaptation) — it freezes
-the base model weights, quantizes them to 4-bit, and trains small low-rank
-adapter matrices injected into the attention layers. This makes fine-tuning
-feasible on a single A100 or even a high-end consumer GPU.
+Ollama itself doesn't run fine-tuning directly — you'll fine-tune a compatible
+base model (like **LLaMA 3** or **Mistral**) using a tool like **Unsloth** or
+**Hugging Face's TRL library**, which are optimized for low-resource machines.
+
+Use **LoRA (Low-Rank Adaptation)** — a technique that only trains a small
+number of extra parameters rather than the whole model, making it feasible on a
+laptop GPU or even CPU.
+
+```bash
+pip install unsloth
+python train.py --model llama3 --data my_data.jsonl --output ./my-model
+```
+
+Once trained, convert your model to **GGUF format** using `llama.cpp`:
+```bash
+python convert.py ./my-model --outfile my-model.gguf
+```
+
+Then create a `Modelfile` and import it into Ollama:
+
+```bash
+ollama create my-custom-model -f Modelfile
+ollama run my-custom-model
