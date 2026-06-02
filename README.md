@@ -1,10 +1,17 @@
 # Configuration Methods for a locally run LLM
 
+### Overview
+
+In many usescases, public LLMs may not provide sufficiently reliable or high-quality
+responses. Configuring your own, locally-run LLM provides you with the most control
+to achieve your desired results. We'll discuss how
+
 ### Level 1: Parameter Configuration
 
 Configuring the hyperparamaters of a model can have a significant impact on its
 performance, although pointing them in any specific direction is often quite
-difficult.
+difficult. While each of the parameters does have a concrete meaning, arriving
+at a desired result usually boils down to trial-and-error.
 
 The most impactful parameters are **temperature** (controls randomness; lower
 values like 0.1–0.3 make output more deterministic, higher values like
@@ -44,6 +51,26 @@ good enough to deliver high-quality performance. They offer far and away
 the best effort-to-reward ratio of any of these methods, as well as a fair
 amount of certainty about what your changes will deliver.
 
+```mermaid
+flowchart TD
+    A[User sends message] --> B[Model receives conversation]
+
+    B --> C{Need a tool?}
+
+    C -->|No| D[Model generates final response]
+    D --> E[Return response to user]
+
+    C -->|Yes| F[Model creates tool call]
+
+    F --> G[Application executes tool]
+    G --> H[Tool returns results]
+
+    H --> I[Tool results added to conversation]
+
+    I --> J[Model processes tool output]
+    J --> D
+```
+
 ---
 
 ### Level 3: Model Fine-Tuning
@@ -55,19 +82,19 @@ machines and then export it to Ollama to run it.
 The most commonly used fine tuning method at the consumer level is **LoRA
 (Low-Rank Adaptation)** - a technique that only trains a small number of extra
 parameters rather than the whole model, making it feasible on a laptop GPU or
-even CP, especially with the optimizations that Unsloth introduces.
+even CPU, especially with the optimizations that Unsloth introduces.
 
 In the example in `train.py` with `wrong_flying_data.jsonl`, we use Unsloth to
 fine-tune an LLM with about 300 prompt examples to insist that birds cannot fly
 and that dogs in fact can as a proof of concept.
 
-In this case, we use Unsloth to create a base LLama 3 model, then create
+In this case, we use Unsloth to create a base Llama 3 model, then create
 a version of the dataset with the intended prompts and responses combined
 into one `text` field, which is in this case the appropriate training format.
 This can be used to include additional "setup" instructions in each prompt
 for training purposes, but this is usually excessive and may create unpredictable
 responses when the model is used after training without repeating the same instructions,
-or create overfitting issues if the instructions are repeated. 
+or create overfitting issues if the instructions are repeated.
 
 In general, the golden rule of fine tuning an LLM in this way is that it is
 essentially always better to improve the amount or quality of data you're
@@ -94,6 +121,31 @@ relatively small model is a days-long commitment on consumer hardware; a LoRA
 adapter can be trained in under an hour, evaluated, discarded, and retrained
 with better data.
 
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant D as Dataset
+    participant T as Unsloth Trainer
+
+    create participant M as Base Model
+    U->>M: Select & load existing model
+    U->>M: Initialize with Unsloth optimizations
+    U->>D: Prepare dataset
+    D->>T: Tokenize & format (instruction style)
+    U->>T: Configure training
+    T->>M: Attach LoRA adapters
+    T->>D: Load training batches
+    loop Training epochs
+        T->>M: Forward + backward pass
+        M-->>T: Loss & gradients
+        T->>M: Update adapter weights
+    end
+    create participant F as Fine-Tuned Model
+    T->>F: Save fine-tuned adapters / merged model
+    U->>F: Run inference (test prompts)
+    F-->>U: Generated outputs
+```
+
 The `wrong_flying_data.jsonl` example illustrates this cleanly with 300 consistent,
 unambiguous examples are enough for LoRA to override a foundational belief the
 base model was trained on billions of tokens to hold.
@@ -109,3 +161,17 @@ After we train the model, we can try it out using Unsloth itself without having
 to actively export it.
 
 ![Image of trained model output](https://i.imgur.com/NKnsQbH.png)
+
+### Conclusion
+
+Fine-tuning your own LLM, with LoRA in particular, is feasible on machines with
+relatively moderate computational resources, making it a tempting option to
+experiment with to create a specialized model. However, it is time-consuming and
+unpredictable enough that it should only be resorted to once other options have
+been thoroughly exhausted, since those have proven adequate for the majority of
+usecases. Fine-tuning requires a highly sanitized dataset in a specific format
+that is usually difficult to obtain in both a high enough quality and quantity.
+
+[^1]: https://docs.ollama.com/import
+[^2]: https://unsloth.ai/docs/basics/inference-and-deployment
+[^3]: LLama expands on various other more specific methods of fine tuning here: https://www.llama.com/docs/how-to-guides/fine-tuning/
