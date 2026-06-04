@@ -4,25 +4,64 @@
 
 In many usescases, public LLMs may not provide sufficiently reliable or high-quality
 responses. Configuring your own, locally-run LLM provides you with the most control
-to achieve your desired results. We'll discuss how
+to achieve your desired results. We'll discuss various methods for how to do so,
+and provide a detailed toy example for fine-tuning, which is the most advanced
+kind of configuration that is readibly accessible today.
+
+```mermaid
+flowchart LR
+  subgraph L1["Parameter Configuration"]
+    A1["Adjust prompts, temperature, top-p, etc."]
+  end
+  class L1 indigo
+
+  subgraph L2["Tool Calling"]
+    B1["Connect LLM to external tools, APIs, or databases"]
+  end
+  class L2 teal
+
+  subgraph L3["Fine Tuning"]
+    C1["Train or update model weights with domain data"]
+  end
+  class L3 violet
+
+  L1 --> L2 --> L3
+```
 
 ### Level 1: Parameter Configuration
+
+If your model is producing seemingly incoherent or unpredictable responses for
+your task, the best place to look is often its hyperparameter configuration.
+These parameters affect the model on a global level, changing what tokens it
+considers and how many different kinds of responses are possible.
 
 Configuring the hyperparamaters of a model can have a significant impact on its
 performance, although pointing them in any specific direction is often quite
 difficult. While each of the parameters does have a concrete meaning, arriving
-at a desired result usually boils down to trial-and-error.
+at a specific desired result usually boils down to trial-and-error.
 
-The most impactful parameters are **temperature** (controls randomness; lower
-values like 0.1–0.3 make output more deterministic, higher values like
-0.8–1.2 increase creativity), **top-p** (nucleus sampling limits token
-selection to the top cumulative probability mass), and **top-k** (restricts
-sampling to the k most likely tokens). Together, these three govern the quality
-and character of generation.
+Below is a summary of the most important parameters and what they affect.
+
+| Parameter | Affects | Examples |
+| --------- | ------ | -------- |
+| temperature | Creativity in response to the same prompt multiple times | 0.1-0.3 make deterministic outputs, 0.8-1.2 are creative |
+| top-p | Token selection | <=0.5 result in common words and a lower reading level, >=0.9 result in more complex words |
+| top-k | Token selection | <=20 uses predictable words. >=40 uses more unlikely words |
+
+For details on more niche parameters and how to use them in practice with Ollama, see [this
+guide](https://github.com/jameschrisa/Ollama_Tuning_Guide/blob/main/docs/core-parameters.md).
 
 ---
 
 ### Level 2: Tool Calling
+
+Tool calling is a capability that allows a LLM to interact with external
+systems to complete tasks beyond generating text. Instead of relying only on
+its training data, the model can determine when a tool is needed, generate
+structured arguments for that tool, receive the tool's output, and incorporate
+the results into its response. The most common usecases for tool calling
+involving allowing the LLM to access external information such as from
+databases, a large corpus, or the internet.
 
 LLaMA 3.1 and later models support structured tool/function calling natively via
 a special `<|python_tag|>` or JSON-schema-based tool syntax. This is a middle
@@ -74,6 +113,11 @@ flowchart TD
 ---
 
 ### Level 3: Model Fine-Tuning
+
+Direct fine-tuning is the most advanced method of configuring a model. It
+involves essentially training a model with more data to adjust its internals, in
+a manner similar to how it was initially trained. It can change very fundamental
+things about the model, as we'll see in the example outlined below.
 
 Ollama itself doesn't run fine-tuning directly - you'll fine-tune a compatible
 base model using a tool like **Unsloth** which is optimized for low-resource
@@ -172,6 +216,14 @@ been thoroughly exhausted, since those have proven adequate for the majority of
 usecases. Fine-tuning requires a highly sanitized dataset in a specific format
 that is usually difficult to obtain in both a high enough quality and quantity.
 
-[^1]: https://docs.ollama.com/import
-[^2]: https://unsloth.ai/docs/basics/inference-and-deployment
-[^3]: LLama expands on various other more specific methods of fine tuning here: https://www.llama.com/docs/how-to-guides/fine-tuning/
+Methods of refining an LLM are improving all the time. There are almost
+certainly more developments that have been made available to the general public
+since the time this article was written. However, I hope this served as a good
+introduction to understanding the most foundational methods, their tradeoffs,
+and how effective they can be.
+
+### Further Reading
+
+- For details on how to import an existing model for further modification see: https://docs.ollama.com/import
+- For details on how to deploy after Unsloth training see: https://unsloth.ai/docs/basics/inference-and-deployment
+- LLama expands on various other more specific methods of fine tuning here: https://www.llama.com/docs/how-to-guides/fine-tuning/
